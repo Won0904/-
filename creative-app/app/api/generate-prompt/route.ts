@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { buildImagePrompt } from "@/lib/buildImagePrompt";
 import type { UserInputs, CopyOption, VisualDirection } from "@/lib/types";
 
+export const maxDuration = 60;
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -20,9 +22,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ promptResult });
   } catch (error) {
     console.error("[API /generate-prompt]", error);
-    return NextResponse.json(
-      { error: "프롬프트 생성 중 오류가 발생했습니다." },
-      { status: 500 }
-    );
+    const msg = error instanceof Error ? error.message : "프롬프트 생성 중 오류가 발생했습니다.";
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }

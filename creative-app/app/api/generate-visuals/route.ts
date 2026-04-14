@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { generateVisualDirections } from "@/lib/generateVisualDirections";
 import type { UserInputs, CopyOption } from "@/lib/types";
 
+export const maxDuration = 60;
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -19,9 +21,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ visualDirections });
   } catch (error) {
     console.error("[API /generate-visuals]", error);
-    return NextResponse.json(
-      { error: "비주얼 방향 생성 중 오류가 발생했습니다." },
-      { status: 500 }
-    );
+    const msg = error instanceof Error ? error.message : "비주얼 방향 생성 중 오류가 발생했습니다.";
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
