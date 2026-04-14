@@ -188,7 +188,7 @@ export default function HomePage() {
                 {state.step === 4 && "비주얼 방향 분석 중..."}
                 {state.step === 5 && "이미지 생성 프롬프트 작성 중..."}
               </p>
-              <p className="text-gray-500 text-sm">잠시만 기다려주세요</p>
+              <p className="text-gray-500 text-sm">Claude가 깊이 생각하는 중이에요 — 약 20~40초 소요</p>
             </div>
           </div>
         ) : (
