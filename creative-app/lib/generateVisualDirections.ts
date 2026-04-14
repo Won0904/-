@@ -1,69 +1,40 @@
-/**
- * LLM API CONNECTION POINT
- *
- * Currently returns mock data for development.
- *
- * To connect a real LLM, replace the mock return with an API call using
- * buildVisualSystemPrompt() to generate contextual visual directions.
- *
- * --- OpenAI Example ---
- * const systemPrompt = buildVisualSystemPrompt(beoltoonBrand, inputs, selectedCopy);
- * const response = await openai.chat.completions.create({
- *   model: "gpt-4o",
- *   messages: [{ role: "system", content: systemPrompt }],
- *   response_format: { type: "json_object" },
- *   temperature: 0.7,
- * });
- * return JSON.parse(response.choices[0].message.content ?? "[]");
- */
-
+import Anthropic from "@anthropic-ai/sdk";
 import type { UserInputs, CopyOption, VisualDirection } from "./types";
-import { mockVisualDirections } from "./mock";
 import { beoltoonBrand } from "../prompts/brand/beoltoon";
 import { buildVisualSystemPrompt } from "../prompts/system/visualSystemPrompt";
 
-function delay(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
+const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 export async function generateVisualDirections(
   inputs: UserInputs,
   selectedCopy: CopyOption
 ): Promise<VisualDirection[]> {
-  const useMock = process.env.USE_MOCK_DATA !== "false";
+  const systemPrompt = buildVisualSystemPrompt(beoltoonBrand, inputs, selectedCopy);
 
-  if (useMock) {
-    await delay(1500);
+  const message = await client.messages.create({
+    model: "claude-opus-4-6",
+    max_tokens: 4096,
+    thinking: { type: "adaptive" },
+    system: systemPrompt,
+    messages: [{ role: "user", content: "비주얼 방향을 제안해주세요." }],
+  });
 
-    const systemPrompt = buildVisualSystemPrompt(beoltoonBrand, inputs, selectedCopy);
-    console.log("[generateVisualDirections] Using mock data. System prompt length:", systemPrompt.length);
-    console.log("[generateVisualDirections] Selected copy:", selectedCopy.text);
-
-    return mockVisualDirections;
+  const textBlock = message.content.find((b) => b.type === "text");
+  if (!textBlock || textBlock.type !== "text") {
+    throw new Error("Claude가 텍스트 응답을 반환하지 않았습니다.");
   }
 
-  // ============================================================
-  // REAL LLM IMPLEMENTATION
-  // ============================================================
-  // const systemPrompt = buildVisualSystemPrompt(beoltoonBrand, inputs, selectedCopy);
-  //
-  // Using OpenAI:
-  // const { OpenAI } = await import("openai");
-  // const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-  // const response = await openai.chat.completions.create({
-  //   model: "gpt-4o",
-  //   messages: [
-  //     { role: "system", content: systemPrompt },
-  //     { role: "user", content: "비주얼 방향을 제안해주세요." }
-  //   ],
-  //   response_format: { type: "json_object" },
-  //   temperature: 0.7,
-  //   max_tokens: 4096,
-  // });
-  // const content = response.choices[0].message.content ?? "[]";
-  // const parsed = JSON.parse(content);
-  // return Array.isArray(parsed) ? parsed : parsed.visualDirections ?? [];
+  const raw = textBlock.text.trim();
+  const jsonStr = raw.replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "").trim();
 
-  await delay(1500);
-  return mockVisualDirections;
+  const parsed = JSON.parse(jsonStr);
+  const directions: VisualDirection[] = Array.isArray(parsed)
+    ? parsed
+    : parsed.visualDirections ?? [];
+
+  if (!Array.isArray(directions) || directions.length === 0) {
+    throw new Error("비주얼 방향 생성 결과가 비어 있습니다.");
+  }
+
+  return directions;
 }
